@@ -653,7 +653,7 @@ class SkeletonOverlayPainter extends CustomPainter {
         double restoredX = y; // x' = y
         double restoredY = -x + xScale; // y' = -x + 画布的宽度
 
-        Offset point = Offset(restoredX, restoredY);
+        Offset point = Offset(y, x);
         points.add(point);
         // 绘制关键点
         canvas.drawCircle(point, 5.0, pointPaint);
