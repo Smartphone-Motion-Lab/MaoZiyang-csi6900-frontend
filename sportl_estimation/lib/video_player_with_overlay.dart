@@ -418,7 +418,8 @@ class VideoWithOverlayPage extends StatefulWidget {
 
 class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
   late VideoPlayerController _videoController;
-  late List<dynamic> _skeletonData;
+  late List<dynamic> _skeletonData = [];
+  double skeletonFPS = 30.0; // 骨架帧率
   bool showOverlay = true;
   double playbackSpeed = 1.0;
 
@@ -427,6 +428,12 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
     super.initState();
     _initializeVideo();
     _loadSkeletonData();
+    _videoController.addListener(() {
+      // 每帧变化时刷新
+      if (_videoController.value.isPlaying) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _initializeVideo() async {
@@ -434,6 +441,7 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
         '视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音: ${widget.videoUrl}'); // 打印 URL 到控制台
     _videoController = VideoPlayerController.network(widget.videoUrl);
     await _videoController.initialize();
+    print("视频时长: ${_videoController.value.duration.inSeconds}s");
     setState(() {});
   }
 
@@ -444,14 +452,23 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
     try {
       final response = await http.get(Uri.parse(widget.jsonFolderPathUrl));
       print("Skeleton Data Response: ${response.body}"); // 在这里打印返回的数据
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           _skeletonData = data['skeleton_data'] ?? [];
+          skeletonFPS = 30.0; // 设置固定帧率为 30
+          print("骨架帧率: ${skeletonFPS}");
         });
         print("Loaded Skeleton Data: $_skeletonData");
         print(
             "Loaded Skeleton Data: ${_skeletonData.isNotEmpty ? _skeletonData[0] : 'No data loaded'}");
+        if (_skeletonData.isNotEmpty) {
+          print("第一帧骨架数据: ${_skeletonData[0]}");
+          print("骨架数据总帧数: ${_skeletonData.length}");
+        } else {
+          print("骨架数据为空");
+        }
       } else {
         setState(() {
           _skeletonData = [];
@@ -488,6 +505,22 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 检查视频播放器和骨架数据是否已初始化
+    if (!_videoController.value.isInitialized || _skeletonData.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    // 验证帧率有效性，防止 NaN 或 Infinity
+    double effectiveSkeletonFPS =
+        (skeletonFPS > 0 && skeletonFPS.isFinite) ? skeletonFPS : 30.0; // 默认值
+
+    // 计算当前帧索引
+    int frameIndex = _videoController.value.isInitialized
+        ? ((_videoController.value.position.inMilliseconds ~/
+                (1000 / skeletonFPS)) %
+            (_skeletonData.isEmpty ? 1 : _skeletonData.length))
+        : 0;
+// 打印调试信息
+    print("当前帧索引: $frameIndex, 骨架数据总帧数: ${_skeletonData.length}");
     return Scaffold(
       appBar: AppBar(
         title: const Text("视频与骨架蒙版"),
@@ -505,16 +538,13 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
                       if (showOverlay)
                         Positioned.fill(
                           child: Container(
-                            color: Colors.black.withOpacity(0.3), // 添加透明背景
+                            color: Colors.black.withOpacity(0.1), // 添加透明背景
                             child: CustomPaint(
                               painter: SkeletonOverlayPainter(
                                 skeletonData: _skeletonData,
-                                frameIndex: (_videoController
-                                            .value.position.inMilliseconds ~/
-                                        33) %
-                                    (_skeletonData.isEmpty
-                                        ? 1
-                                        : _skeletonData.length),
+                                frameIndex: frameIndex,
+                                videoSize:
+                                    _videoController.value.size, // 传递视频尺寸
                               ),
                             ),
                           ),
@@ -570,6 +600,7 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
 class SkeletonOverlayPainter extends CustomPainter {
   final List<dynamic> skeletonData;
   final int frameIndex;
+  final Size videoSize; // 添加视频尺寸参数
 
   final Paint pointPaint = Paint()
     ..color = Colors.red
@@ -582,6 +613,7 @@ class SkeletonOverlayPainter extends CustomPainter {
   SkeletonOverlayPainter({
     required this.skeletonData,
     required this.frameIndex,
+    required this.videoSize, // 构造函数传入视频尺寸
   });
 
   final List<List<int>> openPoseConnections = [
@@ -606,17 +638,22 @@ class SkeletonOverlayPainter extends CustomPainter {
     if (keypoints.length % 3 != 0) return; // 确保关键点数据有效
 
     // 计算屏幕缩放比例
-    double xScale = size.width / 640; // 假设视频宽度为 640
-    double yScale = size.height / 480; // 假设视频高度为 480
-    // 解析并绘制关键点
+    double xScale = size.width / videoSize.width;
+    double yScale = size.height / videoSize.height;
+    print("尺寸尺寸xScale: $xScale, yScale: $yScale");
+
     List<Offset> points = [];
     for (int i = 0; i < keypoints.length; i += 3) {
       double x = keypoints[i] * xScale;
       double y = keypoints[i + 1] * yScale;
-      double confidence = keypoints[i + 2]; // 验证长度是否是 3 的倍数
+      double confidence = (keypoints[i + 2] as num).toDouble(); // 验证长度是否是 3 的倍数
 
-      if (confidence > 0.5) {
-        Offset point = Offset(x, y);
+      if (confidence > 0) {
+        // 顺时针旋转 90 度并平移
+        double restoredX = y; // x' = y
+        double restoredY = -x + xScale; // y' = -x + 画布的宽度
+
+        Offset point = Offset(restoredX, restoredY);
         points.add(point);
         // 绘制关键点
         canvas.drawCircle(point, 5.0, pointPaint);
