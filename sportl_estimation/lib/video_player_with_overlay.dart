@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
@@ -88,28 +90,57 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
     return "$minutes:$seconds";
   }
 
+//可以用的监听器
+  // void _addVideoControllerListener() {
+  //   _videoController.addListener(() {
+  //     // 检查视频是否已初始化
+  //     if (!_videoController.value.isInitialized) return;
+  //     // 获取当前播放位置
+  //     final currentPosition = _videoController.value.position;
+  //     _updateSkeletonFrame(currentPosition);
+  //   });
+  // }
+//测试监听器。
   void _addVideoControllerListener() {
     _videoController.addListener(() {
       // 检查视频是否已初始化
       if (!_videoController.value.isInitialized) return;
       // 获取当前播放位置
-      final currentPosition = _videoController.value.position;
-      _updateSkeletonFrame(currentPosition);
+      //final currentPosition = _videoController.value.position;
+      //_updateSkeletonFrame(currentPosition);
+
+      // 1. 获取当前播放状态和播放时间
+      bool isPlaying = _videoController.value.isPlaying; // 当前是否正在播放
+      Duration currentPosition =
+          _videoController.value.position; // 当前播放时间（Duration 类型）
+      // 2. 暂停状态处理：如果暂停，跳过帧更新
+      if (!isPlaying) return;
+
+      // 3. 计算当前帧索引
+      int frameIndex = _updateSkeletonFrame(currentPosition);
+
+      // 4. 调用更新骨架绘制函数
+      //_updateSkeletonFrame(frameIndex);
     });
   }
 
-  void _updateSkeletonFrame(currentPosition) {
+  int _updateSkeletonFrame(currentPosition) {
     // 假设视频的帧率为 30 FPS
     const double skeletonFPS = 30.0;
 
-    final int frameIndex =
-        ((currentPosition.inMilliseconds) / (1000 / skeletonFPS)).floor();
+    int frameIndex = 0;
+
+    frameIndex = ((currentPosition.inMilliseconds * playbackSpeed) /
+            (1000 / skeletonFPS))
+        .floor();
 
     if (_currentFrameIndex != frameIndex) {
       setState(() {
         _currentFrameIndex = frameIndex;
       });
+      return frameIndex;
     }
+    return _currentFrameIndex;
   }
 
   void _toggleOverlay() {
