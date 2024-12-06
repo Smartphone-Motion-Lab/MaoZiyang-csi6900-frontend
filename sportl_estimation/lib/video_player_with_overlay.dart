@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:convert'; // 确保导入 JSON 解析库
 import 'package:http/http.dart' as http;
 import 'dart:math';
+import 'custom_painter.dart';
 
 class VideoWithOverlayPage extends StatefulWidget {
   final String videoUrl;
@@ -22,81 +23,154 @@ class VideoWithOverlayPage extends StatefulWidget {
 class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
   late VideoPlayerController _videoController;
   late List<dynamic> _skeletonData = [];
+  late Future<void> _initializeVideoPlayerFuture;
   double skeletonFPS = 30.0; // 骨架帧率
   bool showOverlay = true;
+  int _currentFrameIndex = 0;
   double playbackSpeed = 1.0;
+  double videoWidth = 0; // 视频宽度
+  double videoHeight = 0; // 视频高度初始化这里
+  bool isReadyToPaint = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeVideo();
-    _loadSkeletonData();
-    _videoController.addListener(() {
-      // 每帧变化时刷新
-      if (_videoController.value.isPlaying) {
-        setState(() {});
-      }
-    });
+
+    // 初始化视频控制器
+    _initializeVideoPlayerFuture = _initializeVideoController(widget.videoUrl);
+
+    // 加载骨架数据，异步调用骨架下载函数
+    _initializeSkeletonData();
   }
 
-  Future<void> _initializeVideo() async {
-    print(
-        '视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音视频发声音: ${widget.videoUrl}'); // 打印 URL 到控制台
-    _videoController = VideoPlayerController.network(widget.videoUrl);
-    await _videoController.initialize();
-    print("视频时长: ${_videoController.value.duration.inSeconds}s");
-    setState(() {});
-  }
-
-  Future<void> _loadSkeletonData() async {
-    print(
-        "加载 骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据骨架数据");
-    print("Request URL: ${widget.jsonFolderPathUrl}"); // 打印请求的 URL
+  Future<void> _initializeVideoController(String videoUrl) async {
     try {
-      final response = await http.get(Uri.parse(widget.jsonFolderPathUrl));
-      print("Skeleton Data Response: ${response.body}"); // 在这里打印返回的数据
+      print('正在初始化视频,URL: $videoUrl');
+      _videoController = VideoPlayerController.network(videoUrl);
+      await _videoController.initialize();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _skeletonData = data['skeleton_data'] ?? [];
-          skeletonFPS = 30.0; // 设置固定帧率为 30
-          print("骨架帧率: ${skeletonFPS}");
-        });
-        print("Loaded Skeleton Data: $_skeletonData");
-        print(
-            "Loaded Skeleton Data: ${_skeletonData.isNotEmpty ? _skeletonData[0] : 'No data loaded'}");
-        if (_skeletonData.isNotEmpty) {
-          print("第一帧骨架数据: ${_skeletonData[0]}");
-          print("骨架数据总帧数: ${_skeletonData.length}");
-        } else {
-          print("骨架数据为空");
-        }
-      } else {
-        setState(() {
-          _skeletonData = [];
-        });
-        print(
-            "Failed to load skeleton data. Status code: ${response.statusCode}");
+      // 分别获取视频的宽度和高度
+      videoWidth = _videoController.value.size.width;
+      videoHeight = _videoController.value.size.height;
+
+      // 打印调试信息
+      // 获取视频时长
+      final Duration videoDuration = _videoController.value.duration;
+      final double videoFPS = 29.75; // 假设帧率为 30 FPS
+
+      final int totalFrames =
+          (videoDuration.inMilliseconds / (1000 / videoFPS)).floor();
+      print("视频宽度1: $videoWidth");
+      print("视频高度1: $videoHeight");
+      print("视频时长: ${_videoController.value.duration.inSeconds}s");
+      print("视频总帧数: $totalFrames");
+
+      // 检查视频尺寸
+      if (videoWidth <= 0 || videoHeight <= 0) {
+        print("警告：视频尺寸无效，宽: $videoWidth，高: $videoHeight");
+        throw Exception("视频尺寸不可用，请检查视频路径或元数据加载是否成功");
       }
-    } catch (e) {
+
       setState(() {
-        _skeletonData = [];
+        isReadyToPaint = true; // 视频和骨架数据均已准备好
       });
-      print("Error loading skeleton data: $e");
+
+      _addVideoControllerListener(); // 添加监听器
+    } catch (e) {
+      print("视频初始化失败: $e");
     }
   }
 
-  @override
-  void dispose() {
-    _videoController.dispose();
-    super.dispose();
+  // 添加格式化时间的辅助方法
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return "$minutes:$seconds";
+  }
+
+  void _addVideoControllerListener() {
+    _videoController.addListener(() {
+      // 检查视频是否已初始化
+      if (!_videoController.value.isInitialized) return;
+      // 获取当前播放位置
+      final currentPosition = _videoController.value.position;
+      _updateSkeletonFrame(currentPosition);
+    });
+  }
+
+  void _updateSkeletonFrame(currentPosition) {
+    // 假设视频的帧率为 30 FPS
+    const double skeletonFPS = 30.0;
+
+    final int frameIndex =
+        ((currentPosition.inMilliseconds) / (1000 / skeletonFPS)).floor();
+
+    if (_currentFrameIndex != frameIndex) {
+      setState(() {
+        _currentFrameIndex = frameIndex;
+      });
+    }
   }
 
   void _toggleOverlay() {
     setState(() {
       showOverlay = !showOverlay;
     });
+  }
+
+//异步调用骨架下载函数
+  Future<void> _initializeSkeletonData() async {
+    try {
+      // 等待骨架数据下载完成
+      final data = await _loadSkeletonData();
+      if (data != null) {
+        setState(() {
+          _skeletonData = data; // 更新骨架数据
+        });
+      } else {
+        print("骨架数据加载失败或为空");
+      }
+    } catch (e) {
+      print("加载骨架数据时出错: $e");
+    }
+  }
+
+//骨架数据下载
+  Future<List<dynamic>?> _loadSkeletonData() async {
+    try {
+      // 发起 HTTP 请求
+      print("获取骨架信息。");
+      final response = await http.get(Uri.parse(widget.jsonFolderPathUrl));
+      //print("Skeleton Data Response: ${response.body}"); // 打印返回的数据
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        //print("Loaded Skeleton Data: ${data['skeleton_data'] ?? []}");
+
+        if (data['skeleton_data'] != null && data['skeleton_data'].isNotEmpty) {
+          print("第一帧骨架数据: ${data['skeleton_data'][0]}");
+          print("骨架数据总帧数: ${data['skeleton_data'].length}");
+        } else {
+          print("骨架数据为空");
+        }
+        return data['skeleton_data']; // 返回骨架数据
+      } else {
+        print(
+            "Failed to load skeleton data. Status code: ${response.statusCode}");
+        return [];
+      }
+    } catch (e) {
+      print("Error loading skeleton data: $e");
+      return [];
+    }
+  }
+
+  @override
+  void dispose() {
+    // 停止并清理视频控制器
+    _videoController.removeListener(_addVideoControllerListener);
+    _videoController.dispose();
+    super.dispose();
   }
 
   void _changePlaybackSpeed(double speed) {
@@ -108,28 +182,15 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 检查视频播放器和骨架数据是否已初始化
-    if (!_videoController.value.isInitialized || _skeletonData.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    // 验证帧率有效性，防止 NaN 或 Infinity
-    double effectiveSkeletonFPS =
-        (skeletonFPS > 0 && skeletonFPS.isFinite) ? skeletonFPS : 30.0; // 默认值
-
-    // 计算当前帧索引
-    int frameIndex = _videoController.value.isInitialized
-        ? ((_videoController.value.position.inMilliseconds ~/
-                (1000 / skeletonFPS)) %
-            (_skeletonData.isEmpty ? 1 : _skeletonData.length))
-        : 0;
-// 打印调试信息
-    print("当前帧索引: $frameIndex, 骨架数据总帧数: ${_skeletonData.length}");
     return Scaffold(
       appBar: AppBar(
         title: const Text("视频与骨架蒙版"),
       ),
-      body: _videoController.value.isInitialized
-          ? Column(
+      body: FutureBuilder(
+        future: _initializeVideoPlayerFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done) {
+            return Column(
               children: [
                 Expanded(
                   child: Stack(
@@ -138,22 +199,52 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
                         aspectRatio: _videoController.value.aspectRatio,
                         child: VideoPlayer(_videoController),
                       ),
-                      if (showOverlay)
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.black.withOpacity(0.1), // 添加透明背景
-                            child: CustomPaint(
-                              painter: SkeletonOverlayPainter(
-                                skeletonData: _skeletonData,
-                                frameIndex: frameIndex,
-                                videoSize:
-                                    _videoController.value.size, // 传递视频尺寸
-                              ),
+                      if (showOverlay && isReadyToPaint)
+                        AspectRatio(
+                          aspectRatio:
+                              _videoController.value.aspectRatio, // 保持与视频一致的宽高比
+                          child: CustomPaint(
+                            painter: SkeletonOverlayPainter(
+                              skeletonData: _skeletonData,
+                              frameIndex: _currentFrameIndex,
+                              videoWidth: videoWidth,
+                              videoHeight: videoHeight,
                             ),
                           ),
                         ),
                     ],
                   ),
+                ),
+                //添加时间
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _formatDuration(
+                          _videoController.value.position), // 当前播放时间
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    Text(
+                      _formatDuration(_videoController.value.duration), // 视频总时长
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                  ],
+                ),
+
+                // 添加进度条
+                Slider(
+                  value: _videoController.value.position.inSeconds.toDouble(),
+                  min: 0.0,
+                  max: _videoController.value.duration.inSeconds.toDouble(),
+                  onChanged: (value) {
+                    setState(() {
+                      _videoController.seekTo(Duration(seconds: value.toInt()));
+                    });
+                  },
+                  onChangeEnd: (value) {
+                    // 确保用户停止拖动后更新视频位置
+                    _videoController.seekTo(Duration(seconds: value.toInt()));
+                  },
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -192,102 +283,14 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
                   ],
                 ),
               ],
-            )
-          : const Center(
+            );
+          } else {
+            return const Center(
               child: CircularProgressIndicator(),
-            ),
+            );
+          }
+        },
+      ),
     );
   }
-}
-
-class SkeletonOverlayPainter extends CustomPainter {
-  final List<dynamic> skeletonData;
-  final int frameIndex;
-  final Size videoSize; // 添加视频尺寸参数
-
-  final Paint pointPaint = Paint()
-    ..color = Colors.red
-    ..strokeWidth = 3.0;
-
-  final Paint linePaint = Paint()
-    ..color = Colors.blue
-    ..strokeWidth = 2.0;
-
-  SkeletonOverlayPainter({
-    required this.skeletonData,
-    required this.frameIndex,
-    required this.videoSize, // 构造函数传入视频尺寸
-  });
-
-  final List<List<int>> openPoseConnections = [
-    [0, 1], [1, 2], [2, 3], [3, 4], // 上半身右侧
-    [1, 5], [5, 6], [6, 7], // 上半身左侧
-    [1, 8], [8, 9], [9, 10], // 右腿
-    [1, 11], [11, 12], [12, 13], // 左腿
-    [0, 14], [14, 16], // 右眼到右耳
-    [0, 15], [15, 17], // 左眼到左耳
-    [8, 11], // 骨盆连接
-    [8, 24], [11, 24], [24, 1], // 骨盆中心与左右臀部及脖子的连接
-    [20, 21], [22, 23], // 左右脚
-    [10, 22], [13, 20] // 脚部连接
-  ];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (skeletonData.isEmpty || frameIndex >= skeletonData.length) return;
-
-    // 获取当前帧数据
-    final List<dynamic> keypoints = skeletonData[frameIndex];
-    if (keypoints.length % 3 != 0) return; // 确保关键点数据有效
-
-    // 计算屏幕缩放比例
-    double xScale = size.width / videoSize.width;
-    double yScale = size.height / videoSize.height;
-    print("尺寸尺寸xScale: $xScale, yScale: $yScale");
-
-    List<Offset> points = [];
-    for (int i = 0; i < keypoints.length; i += 3) {
-      double x = keypoints[i] * xScale;
-      double y = keypoints[i + 1] * yScale;
-      double confidence = (keypoints[i + 2] as num).toDouble(); // 验证长度是否是 3 的倍数
-
-      if (confidence > 0) {
-        // 顺时针旋转 90 度并平移
-        double restoredX = y; // x' = y
-        double restoredY = -x + xScale; // y' = -x + 画布的宽度
-
-        Offset point = Offset(y, x);
-        points.add(point);
-        // 绘制关键点
-        canvas.drawCircle(point, 5.0, pointPaint);
-
-        // 绘制坐标文本
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: "(${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})",
-            style: const TextStyle(color: Colors.black, fontSize: 12),
-          ),
-          textDirection: TextDirection.ltr,
-        );
-        textPainter.layout();
-        textPainter.paint(canvas, point.translate(5, -10)); // 偏移位置，避免覆盖点
-      } else {
-        points.add(Offset.zero); // 如果置信度低，标记为零点
-      }
-    }
-
-    // 绘制骨架连接
-    for (var connection in openPoseConnections) {
-      if (connection[0] < points.length && connection[1] < points.length) {
-        final start = points[connection[0]];
-        final end = points[connection[1]];
-        if (start != Offset.zero && end != Offset.zero) {
-          canvas.drawLine(start, end, linePaint);
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
