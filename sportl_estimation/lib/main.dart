@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart'; // 导入登录页面
-import 'register_page.dart'; // 导入注册页面
+import 'login_page.dart';
+import 'register_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'generated/l10n.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -20,10 +20,9 @@ void main() async {
 
 Future<void> requestStoragePermission() async {
   if (await Permission.storage.request().isGranted) {
-    print("存储权限已授予");
+    print("Storage privileges have been granted");
   } else {
-    print("存储权限被拒绝");
-    // 处理权限被拒绝的情况，您可以提醒用户或显示错误信息
+    print("Storage access denied");
   }
 }
 
@@ -40,7 +39,7 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       localizationsDelegates: const [
-        S.delegate, // 使用生成的本地化委托
+        S.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -48,9 +47,8 @@ class MyApp extends StatelessWidget {
       supportedLocales: S.delegate.supportedLocales,
       initialRoute: '/',
       routes: {
-        '/': (context) => const LoginPage(), // 主路由显示登录页面
-        '/register_page.dart': (context) => const RegisterPage(), // 注册页面路由
-        // 可以继续添加其他页面的路由
+        '/': (context) => const LoginPage(),
+        '/register_page': (context) => const RegisterPage(),
       },
     );
   }

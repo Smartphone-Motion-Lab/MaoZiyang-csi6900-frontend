@@ -11,7 +11,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class LoginPageState extends State<LoginPage> {
-  Locale _selectedLocale = const Locale('en'); // 默认语言
+  Locale _selectedLocale = const Locale('en');
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -26,13 +26,11 @@ class LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       try {
-        // 登录逻辑
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _usernameController.text,
           password: _passwordController.text,
         );
 
-        // 确保页面仍在上下文中
         if (mounted) {
           Navigator.push(
             context,
@@ -104,7 +102,7 @@ class LoginPageState extends State<LoginPage> {
         title: Text(S.of(context).login),
         actions: [
           TextButton(
-            onPressed: _toggleLanguage, // 切换语言的方法
+            onPressed: _toggleLanguage,
             child: Text(_selectedLocale.languageCode == 'en'
                 ? '切换到中文'
                 : 'Switch to English'),
@@ -146,7 +144,6 @@ class LoginPageState extends State<LoginPage> {
               const SizedBox(height: 20),
               TextButton(
                 onPressed: () {
-                  // 导航到注册页面
                   Navigator.pushNamed(context, '/register_page');
                 },
                 child: Text(S.of(context).dont_have_an_account_register),
@@ -163,7 +160,6 @@ class LoginPageState extends State<LoginPage> {
     );
   }
 
-  // 切换语言的方法
   void _toggleLanguage() {
     setState(() {
       if (_selectedLocale.languageCode == 'en') {

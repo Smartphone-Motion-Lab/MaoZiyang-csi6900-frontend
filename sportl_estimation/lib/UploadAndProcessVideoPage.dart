@@ -100,8 +100,8 @@ class _UploadAndProcessVideoPageState extends State<UploadAndProcessVideoPage> {
     _videoController = VideoPlayerController.file(videoFile!)
       ..initialize().then((_) {
         setState(() {});
-        _videoController!.setLooping(false); // 确保视频不会循环播放
-        _videoController!.addListener(checkVideo); // 添加监听器检查视频是否结束
+        _videoController!.setLooping(false);
+        _videoController!.addListener(checkVideo);
       });
     _videoController!.addListener(() {
       setState(
@@ -110,34 +110,32 @@ class _UploadAndProcessVideoPageState extends State<UploadAndProcessVideoPage> {
   }
 
   void checkVideo() {
-    // 如果视频播放结束
     if (_videoController!.value.position == _videoController!.value.duration) {
-      _videoController!.seekTo(Duration.zero); // 重置视频到起始位置
-      _videoController!.pause(); // 暂停视频
-      setState(() {}); // 更新UI
+      _videoController!.seekTo(Duration.zero);
+      _videoController!.pause();
+      setState(() {});
     }
   }
 
   Future<void> _uploadVideoAndProcess() async {
     if (videoFile == null) {
-      _showSnackbar("请选择一个视频");
+      _showSnackbar("Please select a video");
       return;
     }
     setState(() {
       _isUploading = true;
     });
 
-    // 上传视频并接收处理结果
     bool success = await uploadAndProcessVideo(videoFile!);
 
     setState(() {
       _isUploading = false;
     });
-    // 判断上传是否成功
+
     if (success) {
-      _showSnackbar("视频处理完成");
+      _showSnackbar("Video processing completed");
     } else {
-      _showSnackbar("视频处理失败");
+      _showSnackbar("Video Processing Failure");
     }
   }
 
@@ -155,7 +153,7 @@ class _UploadAndProcessVideoPageState extends State<UploadAndProcessVideoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("上传并处理视频")),
+      appBar: AppBar(title: const Text("Uploading and processing videos")),
       body: Center(
         child: SingleChildScrollView(
           child: Column(
@@ -202,22 +200,22 @@ class _UploadAndProcessVideoPageState extends State<UploadAndProcessVideoPage> {
                 ),
               ElevatedButton(
                 onPressed: _pickVideo,
-                child: const Text("从图库选择视频"),
+                child: const Text("Select video from gallery"),
               ),
               ElevatedButton(
                 onPressed: _captureVideo,
-                child: const Text("拍摄视频"),
+                child: const Text("Shooting Video"),
               ),
               ElevatedButton(
                 onPressed: _uploadVideoAndProcess,
-                child: const Text("上传并处理视频"),
+                child: const Text("Upload and process video"),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) => const VideoListPage())),
-                child: const Text("查看视频列表"),
+                child: const Text("View the list of videos"),
               ),
               if (_isUploading) const CircularProgressIndicator(),
             ],

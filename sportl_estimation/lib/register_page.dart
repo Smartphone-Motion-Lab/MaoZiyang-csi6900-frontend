@@ -18,7 +18,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      // 确保表单通过验证后才执行注册
       _formKey.currentState!.save();
       try {
         UserCredential userCredential =
@@ -27,7 +26,7 @@ class _RegisterPageState extends State<RegisterPage> {
           password: _passwordController.text,
         );
         print("User registered: ${userCredential.user}");
-        // 注册成功后的逻辑
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(S.of(context).registration_successful)),
         );
@@ -42,7 +41,6 @@ class _RegisterPageState extends State<RegisterPage> {
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
-          // ignore: avoid_print
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +54,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
-    // 释放控制器资源
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();

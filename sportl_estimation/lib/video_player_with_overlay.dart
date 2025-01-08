@@ -3,7 +3,7 @@ import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
-import 'dart:convert'; // 确保导入 JSON 解析库
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:math';
 import 'custom_painter.dart';
@@ -26,22 +26,20 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
   late VideoPlayerController _videoController;
   late List<dynamic> _skeletonData = [];
   late Future<void> _initializeVideoPlayerFuture;
-  double skeletonFPS = 30.0; // 骨架帧率
+  double skeletonFPS = 30.0;
   bool showOverlay = true;
   int _currentFrameIndex = 0;
   double playbackSpeed = 1.0;
-  double videoWidth = 0; // 视频宽度
-  double videoHeight = 0; // 视频高度初始化这里
+  double videoWidth = 0;
+  double videoHeight = 0;
   bool isReadyToPaint = false;
 
   @override
   void initState() {
     super.initState();
 
-    // 初始化视频控制器
     _initializeVideoPlayerFuture = _initializeVideoController(widget.videoUrl);
 
-    // 加载骨架数据，异步调用骨架下载函数
     _initializeSkeletonData();
   }
 
@@ -51,14 +49,11 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
       _videoController = VideoPlayerController.network(videoUrl);
       await _videoController.initialize();
 
-      // 分别获取视频的宽度和高度
       videoWidth = _videoController.value.size.width;
       videoHeight = _videoController.value.size.height;
 
-      // 打印调试信息
-      // 获取视频时长
       final Duration videoDuration = _videoController.value.duration;
-      final double videoFPS = 29.75; // 假设帧率为 30 FPS
+      final double videoFPS = 30.0;
 
       final int totalFrames =
           (videoDuration.inMilliseconds / (1000 / videoFPS)).floor();
@@ -74,58 +69,34 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
       }
 
       setState(() {
-        isReadyToPaint = true; // 视频和骨架数据均已准备好
+        isReadyToPaint = true;
       });
 
-      _addVideoControllerListener(); // 添加监听器
+      _addVideoControllerListener();
     } catch (e) {
       print("视频初始化失败: $e");
     }
   }
 
-  // 添加格式化时间的辅助方法
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return "$minutes:$seconds";
   }
 
-//可以用的监听器
-  // void _addVideoControllerListener() {
-  //   _videoController.addListener(() {
-  //     // 检查视频是否已初始化
-  //     if (!_videoController.value.isInitialized) return;
-  //     // 获取当前播放位置
-  //     final currentPosition = _videoController.value.position;
-  //     _updateSkeletonFrame(currentPosition);
-  //   });
-  // }
-//测试监听器。
   void _addVideoControllerListener() {
     _videoController.addListener(() {
-      // 检查视频是否已初始化
       if (!_videoController.value.isInitialized) return;
-      // 获取当前播放位置
-      //final currentPosition = _videoController.value.position;
-      //_updateSkeletonFrame(currentPosition);
 
-      // 1. 获取当前播放状态和播放时间
-      bool isPlaying = _videoController.value.isPlaying; // 当前是否正在播放
-      Duration currentPosition =
-          _videoController.value.position; // 当前播放时间（Duration 类型）
-      // 2. 暂停状态处理：如果暂停，跳过帧更新
+      bool isPlaying = _videoController.value.isPlaying;
+      Duration currentPosition = _videoController.value.position;
       if (!isPlaying) return;
 
-      // 3. 计算当前帧索引
       int frameIndex = _updateSkeletonFrame(currentPosition);
-
-      // 4. 调用更新骨架绘制函数
-      //_updateSkeletonFrame(frameIndex);
     });
   }
 
   int _updateSkeletonFrame(currentPosition) {
-    // 假设视频的帧率为 30 FPS
     const double skeletonFPS = 30.0;
 
     int frameIndex = 0;
@@ -149,14 +120,12 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
     });
   }
 
-//异步调用骨架下载函数
   Future<void> _initializeSkeletonData() async {
     try {
-      // 等待骨架数据下载完成
       final data = await _loadSkeletonData();
       if (data != null) {
         setState(() {
-          _skeletonData = data; // 更新骨架数据
+          _skeletonData = data;
         });
       } else {
         print("骨架数据加载失败或为空");
@@ -166,13 +135,10 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
     }
   }
 
-//骨架数据下载
   Future<List<dynamic>?> _loadSkeletonData() async {
     try {
-      // 发起 HTTP 请求
       print("获取骨架信息。");
       final response = await http.get(Uri.parse(widget.jsonFolderPathUrl));
-      //print("Skeleton Data Response: ${response.body}"); // 打印返回的数据
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -184,7 +150,7 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
         } else {
           print("骨架数据为空");
         }
-        return data['skeleton_data']; // 返回骨架数据
+        return data['skeleton_data'];
       } else {
         print(
             "Failed to load skeleton data. Status code: ${response.statusCode}");
@@ -198,7 +164,6 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
 
   @override
   void dispose() {
-    // 停止并清理视频控制器
     _videoController.removeListener(_addVideoControllerListener);
     _videoController.dispose();
     super.dispose();
@@ -215,7 +180,7 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("视频与骨架蒙版"),
+        title: const Text("Video & Skeleton"),
       ),
       body: FutureBuilder(
         future: _initializeVideoPlayerFuture,
@@ -232,8 +197,7 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
                       ),
                       if (showOverlay && isReadyToPaint)
                         AspectRatio(
-                          aspectRatio:
-                              _videoController.value.aspectRatio, // 保持与视频一致的宽高比
+                          aspectRatio: _videoController.value.aspectRatio,
                           child: CustomPaint(
                             painter: SkeletonOverlayPainter(
                               skeletonData: _skeletonData,
@@ -251,18 +215,16 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _formatDuration(
-                          _videoController.value.position), // 当前播放时间
+                      _formatDuration(_videoController.value.position),
                       style: const TextStyle(color: Colors.black),
                     ),
                     Text(
-                      _formatDuration(_videoController.value.duration), // 视频总时长
+                      _formatDuration(_videoController.value.duration),
                       style: const TextStyle(color: Colors.black),
                     ),
                   ],
                 ),
 
-                // 添加进度条
                 Slider(
                   value: _videoController.value.position.inSeconds.toDouble(),
                   min: 0.0,
@@ -273,7 +235,6 @@ class _VideoWithOverlayPageState extends State<VideoWithOverlayPage> {
                     });
                   },
                   onChangeEnd: (value) {
-                    // 确保用户停止拖动后更新视频位置
                     _videoController.seekTo(Duration(seconds: value.toInt()));
                   },
                 ),

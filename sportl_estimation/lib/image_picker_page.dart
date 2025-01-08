@@ -12,13 +12,13 @@ class MyImagePicker extends StatefulWidget {
 class _MyImagePickerState extends State<MyImagePicker> {
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
-  bool _isPicking = false; // 用于跟踪 ImagePicker 的状态
+  bool _isPicking = false;
 
   Future<void> _pickImage() async {
-    if (_isPicking) return; // 如果 ImagePicker 正在工作，则直接返回
+    if (_isPicking) return;
 
     setState(() {
-      _isPicking = true; // 标记为正在工作
+      _isPicking = true;
     });
     try {
       final XFile? selectedImage =
@@ -29,10 +29,10 @@ class _MyImagePickerState extends State<MyImagePicker> {
         });
       }
     } catch (e) {
-      print('Error picking image: $e'); // 捕获并打印异常
+      print('Error picking image: $e');
     } finally {
       setState(() {
-        _isPicking = false; // 操作完成后，重置状态
+        _isPicking = false;
       });
     }
   }
@@ -41,7 +41,7 @@ class _MyImagePickerState extends State<MyImagePicker> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(S.of(context).select_image), // AppBar标题中文化
+        title: Text(S.of(context).select_image),
       ),
       body: Center(
         child: Column(
@@ -49,14 +49,14 @@ class _MyImagePickerState extends State<MyImagePicker> {
           children: <Widget>[
             ElevatedButton(
               onPressed: _pickImage,
-              child: Text(S.of(context).select_image_from_album), // 按钮文字中文化
+              child: Text(S.of(context).select_image_from_album),
             ),
             if (_image != null)
               Container(
                 padding: const EdgeInsets.all(8),
                 child: Text(
                   S.of(context).image_selected_image_path(_image!.path),
-                ), // 显示选中图片路径的文本中文化
+                ),
               )
           ],
         ),

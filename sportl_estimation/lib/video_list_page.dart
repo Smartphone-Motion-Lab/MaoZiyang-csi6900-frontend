@@ -77,10 +77,10 @@ class _VideoListPageState extends State<VideoListPage> {
         globalVideoFiles.remove(video);
       });
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("视频已删除")));
+          .showSnackBar(SnackBar(content: Text("The video has been deleted")));
     } else {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("删除视频失败")));
+          .showSnackBar(SnackBar(content: Text("Failed to delete video")));
     }
   }
 
@@ -119,10 +119,10 @@ class _VideoListPageState extends State<VideoListPage> {
         renameVideoItem(video.videoUrl, newVideoUrl, newJsonFolderPathUrl);
       });
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("视频已重命名")));
+          .showSnackBar(SnackBar(content: Text("Video has been renamed")));
     } else {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("重命名视频失败")));
+          .showSnackBar(SnackBar(content: Text("Rename video failed")));
     }
   }
 
@@ -133,17 +133,17 @@ class _VideoListPageState extends State<VideoListPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("重命名视频"),
+          title: Text("Rename Video"),
           content: TextField(
             controller: controller,
-            decoration: InputDecoration(labelText: "新视频名称"),
+            decoration: InputDecoration(labelText: "New video name"),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text("取消"),
+              child: Text("cancel"),
             ),
             TextButton(
               onPressed: () async {
@@ -160,11 +160,13 @@ class _VideoListPageState extends State<VideoListPage> {
                   await renameVideo(video, newFilename);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("文件名已存在或无效")),
+                    SnackBar(
+                        content:
+                            Text("File name already exists or is invalid")),
                   );
                 }
               },
-              child: Text("确认"),
+              child: Text("confirm"),
             ),
           ],
         );
@@ -176,7 +178,7 @@ class _VideoListPageState extends State<VideoListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("视频列表"),
+        title: const Text("Video List"),
       ),
       body: ListView.builder(
         itemCount: globalVideoFiles.length,
@@ -189,7 +191,7 @@ class _VideoListPageState extends State<VideoListPage> {
                 // 添加了 title 属性
                 video.videoUrl.split('/').last, // 显示文件名
               ),
-              subtitle: Text("上传时间: ${video.uploadTime}"),
+              subtitle: Text("Uploading time: ${video.uploadTime}"),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -203,9 +205,8 @@ class _VideoListPageState extends State<VideoListPage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => VideoWithOverlayPage(
-                            videoUrl: video.videoUrl, // 视频地址
-                            jsonFolderPathUrl:
-                                video.jsonFolderPathUrl, // 传递骨架数据路径
+                            videoUrl: video.videoUrl,
+                            jsonFolderPathUrl: video.jsonFolderPathUrl,
                           ),
                         ),
                       );
